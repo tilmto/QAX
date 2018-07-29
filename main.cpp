@@ -324,7 +324,9 @@ int HardwareA::Alloc(vector<vector<int>> seq)
             temp=mapArray[current];
             mapArray[current]=mapArray[next];
             mapArray[next]=temp;
+
             cost=cost+7;
+
             current=next;
             next=routeMatrix[current][dest];
         }
@@ -359,7 +361,7 @@ public:
     int Alloc(vector<vector<int>> seq);
 };
 
-HardwareB::HardwareB(string hwname,bool isUniDirection=true):HardwareA(hwname,isUniDirection){}
+HardwareB::HardwareB(string hwname,bool isUniDirection=true):HardwareA(hwname,isUniDirection) {}
 
 void HardwareB::InitMap(vector<vector<int>> seq)
 {
@@ -370,7 +372,10 @@ void HardwareB::InitMap(vector<vector<int>> seq)
     vector<int> sortOutDeg(1,0);
 
     for(j=0; j<seq.size(); j++)
+    {
         freq[seq[j][1]]++;
+    }
+
 
     for(i=1; i<qubitNum; i++)
         for(j=0; j<sortFreq.size(); j++)
@@ -388,25 +393,102 @@ void HardwareB::InitMap(vector<vector<int>> seq)
             }
         }
 
-    for(i=1; i<qubitNum; i++)
-        for(j=0; j<sortOutDeg.size(); j++)
-        {
-            if(outdeg[i]>outdeg[sortOutDeg[j]])
-            {
-                sortOutDeg.insert(sortOutDeg.begin()+j,i);
-                break;
-            }
+    sortOutDeg.clear();
+    sortOutDeg.push_back(4);
+    sortOutDeg.push_back(13);
+    sortOutDeg.push_back(5);
+    sortOutDeg.push_back(12);
+    sortOutDeg.push_back(14);
+    sortOutDeg.push_back(11);
+    sortOutDeg.push_back(6);
+    sortOutDeg.push_back(3);
+    sortOutDeg.push_back(10);
+    sortOutDeg.push_back(15);
+    sortOutDeg.push_back(7);
+    sortOutDeg.push_back(2);
+    sortOutDeg.push_back(0);
+    sortOutDeg.push_back(8);
+    sortOutDeg.push_back(9);
+    sortOutDeg.push_back(1);
 
-            if(j==sortOutDeg.size()-1)
+    /*
+        for(i=1; i<qubitNum; i++)
+            for(j=0; j<sortOutDeg.size(); j++)
             {
-                sortOutDeg.push_back(i);
-                break;
+                if(outdeg[i]>outdeg[sortOutDeg[j]])
+                {
+                    sortOutDeg.insert(sortOutDeg.begin()+j,i);
+                    break;
+                }
+
+                if(j==sortOutDeg.size()-1)
+                {
+                    sortOutDeg.push_back(i);
+                    break;
+                }
             }
-        }
+    */
 
     for(i=0; i<qubitNum; i++)
         mapArray[sortOutDeg[i]]=sortFreq[i];
+/*
+    int current,dest,next,temp,cnt=0;
+    i=0;
+    while(1)
+    {
+        if(seq[i][0]!=-1)
+        {
+            for(j=0; j<qubitNum; j++)
+            {
+                if(mapArray[j]==seq[i][0])
+                    current=j;
 
+                if(mapArray[j]==seq[i][1])
+                    dest=j;
+            }
+
+            if(routeMatrix[current][dest]!=dest)
+            {
+                next=routeMatrix[current][dest];
+
+                while(next!=dest)
+                {
+                    temp=mapArray[current];
+                    mapArray[current]=mapArray[next];
+                    mapArray[next]=temp;
+
+                    current=next;
+                    next=routeMatrix[current][dest];
+                }
+
+                cnt++;
+            }
+
+            ///
+            if(routeMatrix[beg][dest]!=dest)
+            {
+                for(j=0;j<qubitNum;j++)
+                    if(archMatrix[j][dest])
+                        break;
+
+                if(j>=qubitNum)
+                    j=routeMatrix[dest][beg];
+
+                temp=mapArray[beg];
+                mapArray[beg]=mapArray[j];
+                mapArray[j]=temp;
+
+                cnt++;
+            }
+            ///
+        }
+
+        if(cnt>=1 || i>=seq.size()-1)
+            break;
+
+        i++;
+    }
+/*
     /*
     cout << "Initial Mapping:" << endl;
     PrintMap();
@@ -447,7 +529,9 @@ int HardwareB::Alloc(vector<vector<int>> seq)
                 temp=mapArray[current];
                 mapArray[current]=mapArray[next];
                 mapArray[next]=temp;
+
                 cost=cost+7;
+
                 current=next;
                 next=routeMatrix[current][dest];
             }
@@ -582,33 +666,33 @@ int main()
 
     vector<string> fileList;
     vector<vector<int>> seq;
-/*
-    //RandSeqGen(seq,archA.GetQNum(),1000);
-    GetSeq(seq,"seq/seq_3_17_13.qasm");
-    archA.InitMap(seq);
-    costA=archA.Alloc(seq);
+    /*
+        //RandSeqGen(seq,archA.GetQNum(),1000);
+        GetSeq(seq,"seq/seq_3_17_13.qasm");
+        archA.InitMap(seq);
+        costA=archA.Alloc(seq);
 
-    archB.InitMap(seq);
+        archB.InitMap(seq);
 
-    starttime=clock();
+        starttime=clock();
 
-    costB=archB.Alloc(seq);
+        costB=archB.Alloc(seq);
 
-    endtime=clock();
+        endtime=clock();
 
-    cout << "Length of the sequence:" << seq.size() << endl;
-    cout << "Total Cost of HardwareA is: " << costA << endl;
-    cout << "Total Cost of HardwareB is: " << costB << endl;
-    cout << "Execution Time of B is:" << (double)(endtime-starttime)/CLOCKS_PER_SEC << endl;
-    cout << "costB / costA = " << (double)costB/costA << endl;
-*/
+        cout << "Length of the sequence:" << seq.size() << endl;
+        cout << "Total Cost of HardwareA is: " << costA << endl;
+        cout << "Total Cost of HardwareB is: " << costB << endl;
+        cout << "Execution Time of B is:" << (double)(endtime-starttime)/CLOCKS_PER_SEC << endl;
+        cout << "costB / costA = " << (double)costB/costA << endl;
+    */
 
     string directory="/home/tilmto/CodeBlocks/QAX/seq";
     fcount=GetSeqList(fileList,directory);
 
     ofstream os("/home/tilmto/Ericpy/QuantumComputing/bridge/result",ios::out);
 
-    for(int i=0;i<fcount;i++)
+    for(int i=0; i<fcount; i++)
     {
         scount=GetSeq(seq,"seq/"+fileList[i]);
 
