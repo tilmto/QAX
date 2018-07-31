@@ -7,7 +7,7 @@
 #include <sys/types.h>
 #include <dirent.h>
 #include <time.h>
-#define infinity 1e4
+#define infinity 10000000
 
 using namespace std;
 
@@ -348,6 +348,7 @@ int HardwareA::Alloc(vector<vector<int>> seq)
 
 ///////////////  Ending: Original Hardware Based on Swap  ///////////////////
 
+int frac(int n);
 
 ////////////////////  Beginning: Hardware with bridge  //////////////////////
 
@@ -356,20 +357,22 @@ class HardwareB:public HardwareA
 public:
     HardwareB(string hwname,bool isUniDirection);
 
-    void InitMap(vector<vector<int>> seq);
+    void InitMap(vector<vector<int>> seq,vector<int> sortOutDeg);
 
     int Alloc(vector<vector<int>> seq);
+
+    void SubAlloc(vector<vector<int>> worklist,vector<int> mapArray,vector<int>& minmap,int& mincost);
 };
 
 HardwareB::HardwareB(string hwname,bool isUniDirection=true):HardwareA(hwname,isUniDirection) {}
 
-void HardwareB::InitMap(vector<vector<int>> seq)
+void HardwareB::InitMap(vector<vector<int>> seq,vector<int> sortOutDeg)
 {
     int i;
     unsigned int j;
     vector<int> freq(qubitNum,0);
     vector<int> sortFreq(1,0);
-    vector<int> sortOutDeg(1,0);
+    //vector<int> sortOutDeg(1,0);
 
     for(j=0; j<seq.size(); j++)
     {
@@ -392,23 +395,23 @@ void HardwareB::InitMap(vector<vector<int>> seq)
                 break;
             }
         }
-
+/*
     sortOutDeg.clear();
     sortOutDeg.push_back(4);
     sortOutDeg.push_back(13);
     sortOutDeg.push_back(5);
     sortOutDeg.push_back(12);
     sortOutDeg.push_back(14);
-    sortOutDeg.push_back(11);
     sortOutDeg.push_back(6);
+    sortOutDeg.push_back(11);
     sortOutDeg.push_back(3);
     sortOutDeg.push_back(10);
     sortOutDeg.push_back(15);
     sortOutDeg.push_back(7);
     sortOutDeg.push_back(2);
     sortOutDeg.push_back(0);
-    sortOutDeg.push_back(8);
     sortOutDeg.push_back(9);
+    sortOutDeg.push_back(8);
     sortOutDeg.push_back(1);
 
     /*
@@ -464,31 +467,31 @@ void HardwareB::InitMap(vector<vector<int>> seq)
                 cnt++;
             }
 
-            ///
-            if(routeMatrix[beg][dest]!=dest)
-            {
-                for(j=0;j<qubitNum;j++)
-                    if(archMatrix[j][dest])
-                        break;
 
-                if(j>=qubitNum)
-                    j=routeMatrix[dest][beg];
+                        if(routeMatrix[current][dest]!=dest)
+                        {
+                            for(j=0;j<qubitNum;j++)
+                                if(archMatrix[j][dest])
+                                    break;
 
-                temp=mapArray[beg];
-                mapArray[beg]=mapArray[j];
-                mapArray[j]=temp;
+                            if(j>=qubitNum)
+                                j=routeMatrix[dest][current];
 
-                cnt++;
-            }
-            ///
+                            temp=mapArray[current];
+                            mapArray[current]=mapArray[j];
+                            mapArray[j]=temp;
+
+                            cnt++;
+                        }
+
         }
 
-        if(cnt>=1 || i>=seq.size()-1)
+        if(cnt>=4 || i>=seq.size()-1)
             break;
 
         i++;
     }
-/*
+*/
     /*
     cout << "Initial Mapping:" << endl;
     PrintMap();
@@ -498,17 +501,102 @@ void HardwareB::InitMap(vector<vector<int>> seq)
 
 int HardwareB::Alloc(vector<vector<int>> seq)
 {
-    unsigned int i;
-    int j,temp,current,next,dest,cost=0;
+    unsigned int i,j;
+    int m,n,seqLen,permuteNum,mincost,totalcost=0;
+    vector<vector<int>> worklist;
+    vector<int> minmap;
+    vector<int> temp;
 
-    for(i=0; i<seq.size(); i++)
+    for(i=0; i<seq.size(); )
+    {
+        for(j=0; j<worklist.size(); j++)
+        {
+            if(seq[i][0]==worklist[j][0] || seq[i][0]==worklist[j][1] || seq[i][1]==worklist[j][0] || seq[i][1]==worklist[j][1])
+                break;
+        }
+
+        if(j>=worklist.size())
+        {
+            worklist.push_back(seq[i]);
+            i++;
+        }
+
+        else
+        {
+            mincost=infinity;
+            seqLen=worklist.size();
+
+            if(seqLen==1)
+                SubAlloc(worklist,mapArray,minmap,mincost);
+
+            else
+            {
+                permuteNum=frac(seqLen);
+                m=0;
+                while(m<permuteNum)
+                {
+                    for(n=seqLen-1; n>0; n--)
+                    {
+                        temp=worklist[n];
+                        worklist[n]=worklist[n-1];
+                        worklist[n-1]=temp;
+                        m++;
+                        SubAlloc(worklist,mapArray,minmap,mincost);
+                    }
+
+                    temp=worklist[seqLen-1];
+                    worklist[seqLen-1]=worklist[seqLen-2];
+                    worklist[seqLen-2]=temp;
+                    m++;
+                    SubAlloc(worklist,mapArray,minmap,mincost);
+
+                    for(n=0; n<seqLen-1; n++)
+                    {
+                        temp=worklist[n];
+                        worklist[n]=worklist[n+1];
+                        worklist[n+1]=temp;
+                        m++;
+                        SubAlloc(worklist,mapArray,minmap,mincost);
+                    }
+
+                    temp=worklist[0];
+                    worklist[0]=worklist[1];
+                    worklist[1]=temp;
+                    m++;
+                    SubAlloc(worklist,mapArray,minmap,mincost);
+                }
+            }
+
+            mapArray=minmap;
+            totalcost=totalcost+mincost;
+            worklist.clear();
+
+        }
+
+        /*
+        cout << "After the " << i+1 << "th operation:" << endl;
+        PrintMap();
+        cout << endl;
+        */
+    }
+
+    return totalcost;
+}
+
+
+void HardwareB::SubAlloc(vector<vector<int>> worklist,vector<int> mapArray,vector<int>& minmap,int& mincost)
+{
+    unsigned int i;
+    int j,current,next,dest,temp,cost=0;
+
+    for(i=0; i<worklist.size(); i++)
     {
         for(j=0; j<qubitNum; j++)
         {
-            if(mapArray[j]==seq[i][0])
+            if(mapArray[j]==worklist[i][0])
                 current=j;
 
-            if(mapArray[j]==seq[i][1])
+            if(mapArray[j]==worklist[i][1])
                 dest=j;
         }
 
@@ -548,16 +636,15 @@ int HardwareB::Alloc(vector<vector<int>> seq)
                 cost=cost+8;
             }
         }
-
-        /*
-        cout << "After the " << i+1 << "th operation:" << endl;
-        PrintMap();
-        cout << endl;
-        */
     }
 
-    return cost;
+    if(cost<mincost)
+    {
+        mincost=cost;
+        minmap=mapArray;
+    }
 }
+
 
 ///////////////  Ending: Hardware with bridge  /////////////////////
 
@@ -666,27 +753,117 @@ int main()
 
     vector<string> fileList;
     vector<vector<int>> seq;
-    /*
-        //RandSeqGen(seq,archA.GetQNum(),1000);
-        GetSeq(seq,"seq/seq_3_17_13.qasm");
-        archA.InitMap(seq);
-        costA=archA.Alloc(seq);
 
-        archB.InitMap(seq);
 
-        starttime=clock();
 
+
+    scount=GetSeq(seq,"seq/seq_ground_state_estimation_10.qasm");
+
+    archA.InitMap(seq);
+    costA=archA.Alloc(seq)+scount;
+
+//    vector<int> sortOutDeg={0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
+    vector<int> sortOutDeg={4,13,5,12,14,6,11,3,10,15,7,2,0,9,8,1};
+
+    vector<int> minsort;
+    int mincost=infinity;
+    int i,j,temp;
+    int cnt=frac(6);
+
+    i=0;
+    while(i<cnt)
+    {
+        for(j=sortOutDeg.size()-1;j>0;j--)
+        {
+            temp=sortOutDeg[j];
+            sortOutDeg[j]=sortOutDeg[j-1];
+            sortOutDeg[j-1]=temp;
+            i++;
+
+            archB.InitMap(seq,sortOutDeg);
+            costB=archB.Alloc(seq);
+            if(costB<mincost)
+            {
+                mincost=costB;
+                minsort=sortOutDeg;
+            }
+        }
+
+        temp=sortOutDeg[sortOutDeg.size()-1];
+        sortOutDeg[sortOutDeg.size()-1]=sortOutDeg[sortOutDeg.size()-2];
+        sortOutDeg[sortOutDeg.size()-2]=temp;
+        i++;
+
+        archB.InitMap(seq,sortOutDeg);
         costB=archB.Alloc(seq);
+        if(costB<mincost)
+        {
+            mincost=costB;
+            minsort=sortOutDeg;
+        }
 
-        endtime=clock();
+        for(j=0;j<sortOutDeg.size()-1;j++)
+        {
+            temp=sortOutDeg[j];
+            sortOutDeg[j]=sortOutDeg[j+1];
+            sortOutDeg[j+1]=temp;
+            i++;
 
-        cout << "Length of the sequence:" << seq.size() << endl;
-        cout << "Total Cost of HardwareA is: " << costA << endl;
-        cout << "Total Cost of HardwareB is: " << costB << endl;
-        cout << "Execution Time of B is:" << (double)(endtime-starttime)/CLOCKS_PER_SEC << endl;
-        cout << "costB / costA = " << (double)costB/costA << endl;
-    */
+            archB.InitMap(seq,sortOutDeg);
+            costB=archB.Alloc(seq);
+            if(costB<mincost)
+            {
+                mincost=costB;
+                minsort=sortOutDeg;
+            }
+        }
 
+        temp=sortOutDeg[0];
+        sortOutDeg[0]=sortOutDeg[1];
+        sortOutDeg[1]=temp;
+        i++;
+
+        archB.InitMap(seq,sortOutDeg);
+        costB=archB.Alloc(seq);
+        if(costB<mincost)
+        {
+            mincost=costB;
+            minsort=sortOutDeg;
+        }
+
+    }
+
+    mincost=mincost+scount;
+    cout << "Length of the sequence:" << seq.size()+scount << endl;
+    cout << "Total Cost of HardwareA is: " << costA << endl;
+    cout << "Total Cost of HardwareB is: " << mincost << endl;
+    cout << "costB / costA = " << (double)mincost/costA << endl;
+
+    for(i=0;i<minsort.size();i++)
+        cout << minsort[i] << endl;
+
+/*
+    //RandSeqGen(seq,archA.GetQNum(),10000);
+    GetSeq(seq,"seq/seq_inc_237.qasm");
+
+    archA.InitMap(seq);
+    costA=archA.Alloc(seq);
+
+    archB.InitMap(seq);
+
+    starttime=clock();
+
+    costB=archB.Alloc(seq);
+
+    endtime=clock();
+
+    cout << "Length of the sequence:" << seq.size() << endl;
+    cout << "Total Cost of HardwareA is: " << costA << endl;
+    cout << "Total Cost of HardwareB is: " << costB << endl;
+    cout << "Execution Time of B is:" << (double)(endtime-starttime)/CLOCKS_PER_SEC << endl;
+    cout << "costB / costA = " << (double)costB/costA << endl;
+
+/*
     string directory="/home/tilmto/CodeBlocks/QAX/seq";
     fcount=GetSeqList(fileList,directory);
 
@@ -717,7 +894,7 @@ int main()
     }
 
     os.close();
-
+*/
     return 0;
 }
 
@@ -752,6 +929,12 @@ int GetSeq(vector<vector<int>> &seq,string fname)
     seq.clear();
 
     ifstream is(fname,ios::in);
+
+    if(!is)
+    {
+        cout << "No such seq file." << endl;
+        exit(1);
+    }
 
     while(!is.eof())
     {
@@ -818,6 +1001,13 @@ int GetSeqList(vector<string> &fileList, string directory)
 }
 
 
+int frac(int n)
+{
+    if(n==0 || n==1)
+        return 1;
+    else
+        return n*frac(n-1);
+}
 
 
 
