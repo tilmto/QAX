@@ -280,10 +280,6 @@ void HardwareA::InitMap(vector<vector<int>> seq)
     for(i=0; i<qubitNum; i++)
         mapArray[sortOutDeg[i]]=sortFreq[i];
 
-    /*
-    cout << "Initial Mapping:" << endl;
-    PrintMap();
-    */
 }
 
 
@@ -335,12 +331,6 @@ int HardwareA::Alloc(vector<vector<int>> seq)
             cost++;
         else
             cost=cost+5;
-
-        /*
-        cout << "After the " << i+1 << "th operation:" << endl;
-        PrintMap();
-        cout << endl;
-        */
     }
 
     return cost;
@@ -357,7 +347,7 @@ class HardwareB:public HardwareA
 public:
     HardwareB(string hwname,bool isUniDirection);
 
-    void InitMap(vector<vector<int>> seq,vector<int> sortOutDeg);
+    void InitMap(vector<vector<int>> seq);
 
     int Alloc(vector<vector<int>> seq);
 
@@ -366,13 +356,13 @@ public:
 
 HardwareB::HardwareB(string hwname,bool isUniDirection=true):HardwareA(hwname,isUniDirection) {}
 
-void HardwareB::InitMap(vector<vector<int>> seq,vector<int> sortOutDeg)
+void HardwareB::InitMap(vector<vector<int>> seq)
 {
     int i;
     unsigned int j;
     vector<int> freq(qubitNum,0);
     vector<int> sortFreq(1,0);
-    //vector<int> sortOutDeg(1,0);
+    vector<int> sortOutDeg(1,0);
 
     for(j=0; j<seq.size(); j++)
     {
@@ -395,7 +385,7 @@ void HardwareB::InitMap(vector<vector<int>> seq,vector<int> sortOutDeg)
                 break;
             }
         }
-/*
+
     sortOutDeg.clear();
     sortOutDeg.push_back(4);
     sortOutDeg.push_back(13);
@@ -414,27 +404,9 @@ void HardwareB::InitMap(vector<vector<int>> seq,vector<int> sortOutDeg)
     sortOutDeg.push_back(8);
     sortOutDeg.push_back(1);
 
-    /*
-        for(i=1; i<qubitNum; i++)
-            for(j=0; j<sortOutDeg.size(); j++)
-            {
-                if(outdeg[i]>outdeg[sortOutDeg[j]])
-                {
-                    sortOutDeg.insert(sortOutDeg.begin()+j,i);
-                    break;
-                }
-
-                if(j==sortOutDeg.size()-1)
-                {
-                    sortOutDeg.push_back(i);
-                    break;
-                }
-            }
-    */
-
     for(i=0; i<qubitNum; i++)
         mapArray[sortOutDeg[i]]=sortFreq[i];
-/*
+
     int current,dest,next,temp,cnt=0;
     i=0;
     while(1)
@@ -466,24 +438,6 @@ void HardwareB::InitMap(vector<vector<int>> seq,vector<int> sortOutDeg)
 
                 cnt++;
             }
-
-
-                        if(routeMatrix[current][dest]!=dest)
-                        {
-                            for(j=0;j<qubitNum;j++)
-                                if(archMatrix[j][dest])
-                                    break;
-
-                            if(j>=qubitNum)
-                                j=routeMatrix[dest][current];
-
-                            temp=mapArray[current];
-                            mapArray[current]=mapArray[j];
-                            mapArray[j]=temp;
-
-                            cnt++;
-                        }
-
         }
 
         if(cnt>=4 || i>=seq.size()-1)
@@ -491,11 +445,6 @@ void HardwareB::InitMap(vector<vector<int>> seq,vector<int> sortOutDeg)
 
         i++;
     }
-*/
-    /*
-    cout << "Initial Mapping:" << endl;
-    PrintMap();
-    */
 }
 
 
@@ -626,6 +575,14 @@ void HardwareB::SubAlloc(vector<vector<int>> worklist,vector<int> mapArray,vecto
 
             if(archMatrix[current][next] && archMatrix[next][dest])
                 cost=cost+4;
+
+            /*
+            else
+            {
+                cost=cost+10;
+            }
+            */
+
             else if((!archMatrix[current][next] && !archMatrix[next][dest]) || (archMatrix[current][next] && !archMatrix[next][dest]))
                 cost=cost+10;
             else
@@ -635,6 +592,7 @@ void HardwareB::SubAlloc(vector<vector<int>> worklist,vector<int> mapArray,vecto
                 mapArray[next]=temp;
                 cost=cost+8;
             }
+
         }
     }
 
@@ -645,99 +603,12 @@ void HardwareB::SubAlloc(vector<vector<int>> worklist,vector<int> mapArray,vecto
     }
 }
 
-
 ///////////////  Ending: Hardware with bridge  /////////////////////
 
-/*
-////////  Beginning: Hardware with bridge and fixed qubits  ////////
-
-class HardwareC:public HardwareB
-{
-protected:
-    vector<int> fixedQubit;
-
-public:
-    HardwareC(string hwname,bool isUniDirection);
-
-    int Alloc(vector<vector<int>> seq);
-};
-
-HardwareC::HardwareC(string hwname,bool isUniDirection=true):HardwareB(hwname,isUniDirection)
-{
-    fixedQubit.push_back(6);
-    fixedQubit.push_back(8);
-}
-
-
-int HardwareC::Alloc(vector<vector<int>> seq)
-{
-    unsigned int i;
-    int j,temp,current,next,dest,cost=0;
-
-    for(i=0; i<seq.size(); i++)
-    {
-        for(j=0; j<qubitNum; j++)
-        {
-            if(mapArray[j]==seq[i][1])
-                current=j;
-
-            if(mapArray[j]==seq[i][0])
-                dest=j;
-        }
-
-        if(outdeg[current]>outdeg[dest])
-        {
-            temp=current;
-            current=dest;
-            dest=temp;
-        }
-
-        next=routeMatrix[current][dest];
-
-        if(next==dest)
-            cost++;
-        else
-        {
-            while(routeMatrix[next][dest]!=dest)
-            {
-                if(next!=6 && next!=8)
-                {
-                    temp=mapArray[current];
-                    mapArray[current]=mapArray[next];
-                    mapArray[next]=temp;
-                    cost=cost+7;
-                    current=next;
-                    next=routeMatrix[current][dest];
-                }
-
-                else
-                {
-                    for(j=0; j<qubitNum; j++)
-                        if(routeMatrix[current][j]==j && routeMatrix[j][dest]!=current && j!=6 && j!=8)
-                        {
-                            next=j;
-                            break;
-                        }
-                }
-            }
-
-            cost=cost+4;
-        }
-
-        cout << "After the " << i+1 << "th operation:" << endl;
-        PrintMap();
-        cout << endl;
-    }
-
-    return cost;
-}
-
-//////////  Ending: Hardware with bridge and fixed qubits  ///////////
-*/
 
 void RandSeqGen(vector<vector<int>> &seq,int qubitNum,int seqLen);
 
-int GetSeq(vector<vector<int>> &seq,string fname);
+void GetSeq(vector<vector<int>> &seq,string fname,int scount[]);
 
 void PrintSeq(vector<vector<int>> seq);
 
@@ -745,7 +616,8 @@ int GetSeqList(vector<string> &fileList, string directory);
 
 int main()
 {
-    int costA,costB,scount,fcount;
+    int costA,costB,fcount;
+    int scount[2];
     clock_t starttime,endtime;
 
     HardwareA archA("ibmqx5");
@@ -753,94 +625,6 @@ int main()
 
     vector<string> fileList;
     vector<vector<int>> seq;
-
-
-
-
-    scount=GetSeq(seq,"seq/seq_ground_state_estimation_10.qasm");
-
-    archA.InitMap(seq);
-    costA=archA.Alloc(seq)+scount;
-
-//    vector<int> sortOutDeg={0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
-    vector<int> sortOutDeg={4,13,5,12,14,6,11,3,10,15,7,2,0,9,8,1};
-
-    vector<int> minsort;
-    int mincost=infinity;
-    int i,j,temp;
-    int cnt=frac(6);
-
-    i=0;
-    while(i<cnt)
-    {
-        for(j=sortOutDeg.size()-1;j>0;j--)
-        {
-            temp=sortOutDeg[j];
-            sortOutDeg[j]=sortOutDeg[j-1];
-            sortOutDeg[j-1]=temp;
-            i++;
-
-            archB.InitMap(seq,sortOutDeg);
-            costB=archB.Alloc(seq);
-            if(costB<mincost)
-            {
-                mincost=costB;
-                minsort=sortOutDeg;
-            }
-        }
-
-        temp=sortOutDeg[sortOutDeg.size()-1];
-        sortOutDeg[sortOutDeg.size()-1]=sortOutDeg[sortOutDeg.size()-2];
-        sortOutDeg[sortOutDeg.size()-2]=temp;
-        i++;
-
-        archB.InitMap(seq,sortOutDeg);
-        costB=archB.Alloc(seq);
-        if(costB<mincost)
-        {
-            mincost=costB;
-            minsort=sortOutDeg;
-        }
-
-        for(j=0;j<sortOutDeg.size()-1;j++)
-        {
-            temp=sortOutDeg[j];
-            sortOutDeg[j]=sortOutDeg[j+1];
-            sortOutDeg[j+1]=temp;
-            i++;
-
-            archB.InitMap(seq,sortOutDeg);
-            costB=archB.Alloc(seq);
-            if(costB<mincost)
-            {
-                mincost=costB;
-                minsort=sortOutDeg;
-            }
-        }
-
-        temp=sortOutDeg[0];
-        sortOutDeg[0]=sortOutDeg[1];
-        sortOutDeg[1]=temp;
-        i++;
-
-        archB.InitMap(seq,sortOutDeg);
-        costB=archB.Alloc(seq);
-        if(costB<mincost)
-        {
-            mincost=costB;
-            minsort=sortOutDeg;
-        }
-
-    }
-
-    mincost=mincost+scount;
-    cout << "Length of the sequence:" << seq.size()+scount << endl;
-    cout << "Total Cost of HardwareA is: " << costA << endl;
-    cout << "Total Cost of HardwareB is: " << mincost << endl;
-    cout << "costB / costA = " << (double)mincost/costA << endl;
-
-    for(i=0;i<minsort.size();i++)
-        cout << minsort[i] << endl;
 
 /*
     //RandSeqGen(seq,archA.GetQNum(),10000);
@@ -863,7 +647,7 @@ int main()
     cout << "Execution Time of B is:" << (double)(endtime-starttime)/CLOCKS_PER_SEC << endl;
     cout << "costB / costA = " << (double)costB/costA << endl;
 
-/*
+*/
     string directory="/home/tilmto/CodeBlocks/QAX/seq";
     fcount=GetSeqList(fileList,directory);
 
@@ -871,21 +655,21 @@ int main()
 
     for(int i=0; i<fcount; i++)
     {
-        scount=GetSeq(seq,"seq/"+fileList[i]);
+        GetSeq(seq,"seq/"+fileList[i],scount);
 
         archA.InitMap(seq);
-        costA=archA.Alloc(seq)+scount;
+        costA=archA.Alloc(seq)+scount[0];
 
         archB.InitMap(seq);
 
         starttime=clock();
 
-        costB=archB.Alloc(seq)+scount;
+        costB=archB.Alloc(seq)+scount[1];
 
         endtime=clock();
 
         os << fileList[i] << ":" << endl;
-        os << "Length of the sequence:" << seq.size()+scount << endl;
+        os << "Length of the sequence:" << seq.size()+scount[0] << endl;
         os << "Total Cost of HardwareA is: " << costA << endl;
         os << "Total Cost of HardwareB is: " << costB << endl;
         os << "Execution Time of B is: " << (double)(endtime-starttime)/CLOCKS_PER_SEC << endl;
@@ -894,7 +678,7 @@ int main()
     }
 
     os.close();
-*/
+
     return 0;
 }
 
@@ -920,11 +704,12 @@ void RandSeqGen(vector<vector<int>> &seq,int qubitNum,int seqLen)
 }
 
 
-int GetSeq(vector<vector<int>> &seq,string fname)
+void GetSeq(vector<vector<int>> &seq,string fname,int scount[])
 {
     int i=0;
-    int scount=0;
     int first,second;
+    scount[0]=0;
+    scount[1]=0;
 
     seq.clear();
 
@@ -940,8 +725,16 @@ int GetSeq(vector<vector<int>> &seq,string fname)
     {
         is >> first;
         is >> second;
+
         if(first==-1)
-            scount++;
+        {
+            scount[0]++;
+            scount[1]++;
+        }
+
+        else if(first==-2)
+            scount[1]--;
+
         else
         {
             seq.push_back(vector<int>(2));
@@ -954,8 +747,6 @@ int GetSeq(vector<vector<int>> &seq,string fname)
     seq.pop_back();
 
     is.close();
-
-    return scount;
 }
 
 
