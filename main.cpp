@@ -441,12 +441,6 @@ void HardwareB::InitMap(vector<vector<int>> seq)
     for(i=0; i<qubitNum; i++)
         mapArray[sortOutDeg[i]]=sortFreq[i];
 
-    /*
-        cout << "Initial Mapping:" << endl;
-        PrintMap();
-        cout << endl;
-    */
-
 }
 
 
