@@ -8,6 +8,7 @@
 #include <dirent.h>
 #include <time.h>
 #define infinity 10000000
+#define Readahead 20
 
 using namespace std;
 
@@ -172,6 +173,20 @@ void HardwareA::Floyd()
                     distMatrix[i][j]=distMatrix[i][k]+distMatrix[k][j];
                     routeMatrix[i][j]=routeMatrix[i][k];
                 }
+
+    for(i=0; i<qubitNum; i++)
+        for(j=0; j<qubitNum; j++)
+        {
+            if(archMatrix[i][j] && i!=j)
+                for(k=0; k<qubitNum; k++)
+                {
+                    if(archMatrix[j][k] && j!=k)
+                    {
+                        routeMatrix[i][k]=j;
+                        routeMatrix[k][i]=j;
+                    }
+                }
+        }
 
     VerifyRouteMatrix();
 
@@ -403,7 +418,7 @@ void HardwareB::InitMap(vector<vector<int>> seq)
     sortOutDeg.push_back(8);
     sortOutDeg.push_back(1);
 
-    /*
+/*
         //ibmqxm
         sortOutDeg.push_back(6);
         sortOutDeg.push_back(5);
@@ -421,50 +436,11 @@ void HardwareB::InitMap(vector<vector<int>> seq)
         sortOutDeg.push_back(12);
         sortOutDeg.push_back(0);
         sortOutDeg.push_back(3);
-    */
+*/
 
     for(i=0; i<qubitNum; i++)
         mapArray[sortOutDeg[i]]=sortFreq[i];
-    /*
-        int current,dest,next,temp,cnt=0;
-        i=0;
-        while(1)
-        {
-            if(seq[i][0]!=-1)
-            {
-                for(j=0; j<qubitNum; j++)
-                {
-                    if(mapArray[j]==seq[i][0])
-                        current=j;
 
-                    if(mapArray[j]==seq[i][1])
-                        dest=j;
-                }
-
-                if(routeMatrix[current][dest]!=dest)
-                {
-                    next=routeMatrix[current][dest];
-
-                    while(next!=dest)
-                    {
-                        temp=mapArray[current];
-                        mapArray[current]=mapArray[next];
-                        mapArray[next]=temp;
-
-                        current=next;
-                        next=routeMatrix[current][dest];
-                    }
-
-                    cnt++;
-                }
-            }
-
-            if(cnt>=4 || i>=seq.size()-1)
-                break;
-
-            i++;
-        }
-    */
     /*
         cout << "Initial Mapping:" << endl;
         PrintMap();
@@ -477,123 +453,156 @@ void HardwareB::InitMap(vector<vector<int>> seq)
 int HardwareB::Alloc(vector<vector<int>> seq)
 {
     unsigned int i,j;
-    int m,n,seqLen,permuteNum,mincost,totalcost=0;
+    int m,n,seqLen,permuteNum,mincost,record,cnt,totalcost=0;
+    bool flag=false;
     vector<vector<int>> worklist;
     vector<int> minmap;
     vector<int> temp;
     vector<bool> hadamard(qubitNum,false);
+    vector<bool> seqitem(seq.size(),true);
+    vector<bool> vacant(qubitNum,true);
 
-    for(i=0; i<seq.size();)
+    record=seq.size();
+    cnt=0;
+
+    for(i=0; i<seq.size();i++)
     {
-        if(seq[i][0]==-1)
+        if(flag)
+            cnt++;
+
+        if(seq[i][0]==-1 && seqitem[i])
         {
-            totalcost++;
-
-            for(j=0; j<qubitNum; j++)
+            if(vacant[seq[i][1]])
             {
-                if(mapArray[j]==seq[i][1])
-                    break;
-            }
+                for(j=0; j<qubitNum; j++)
+                {
+                    if(mapArray[j]==seq[i][1])
+                        break;
+                }
 
-            hadamard[j]=false;
-
-            i++;
-        }
-
-        else if(seq[i][0]==-2)
-        {
-            for(j=0; j<qubitNum; j++)
-            {
-                if(mapArray[j]==seq[i][1])
-                    break;
-            }
-
-            if(hadamard[j])
-            {
-                totalcost--;
-                hadamard[j]=false;
-            }
-
-            else
-            {
                 totalcost++;
-                hadamard[j]=true;
+
+                hadamard[j]=false;
+
+                seqitem[i]=false;
             }
 
-            i++;
+            else if(record>i)
+            {
+                record=i;
+                flag=true;
+            }
         }
 
-        else
+        else if(seq[i][0]==-2 && seqitem[i])
         {
-            for(j=0; j<worklist.size(); j++)
+            if(vacant[seq[i][1]])
             {
-                if(seq[i][0]==worklist[j][0] || seq[i][0]==worklist[j][1] || seq[i][1]==worklist[j][0] || seq[i][1]==worklist[j][1])
-                    break;
+                for(j=0; j<qubitNum; j++)
+                {
+                    if(mapArray[j]==seq[i][1])
+                        break;
+                }
+
+                if(hadamard[j])
+                {
+                    totalcost--;
+                    hadamard[j]=false;
+                }
+
+                else
+                {
+                    totalcost++;
+                    hadamard[j]=true;
+                }
+
+                seqitem[i]=false;
             }
 
-            if(j>=worklist.size())
+            else if(record>i)
+            {
+                record=i;
+                flag=true;
+            }
+        }
+
+        else if(seq[i][0]>=0 && seqitem[i])
+        {
+            if(vacant[seq[i][0]] && vacant[seq[i][1]])
             {
                 worklist.push_back(seq[i]);
-                i++;
-                continue;
+                vacant[seq[i][0]]=false;
+                vacant[seq[i][1]]=false;
+                seqitem[i]=false;
+            }
+
+            else if(record>i)
+            {
+                record=i;
+                flag=true;
             }
         }
 
-        if(worklist.size())
+        if(cnt>=Readahead || i==seq.size()-1)
         {
-            mincost=infinity;
-            seqLen=worklist.size();
-
-            if(seqLen==1)
-                SubAlloc(worklist,mapArray,hadamard,minmap,mincost);
-
-            else
+            if(worklist.size())
             {
-                permuteNum=frac(seqLen);
-                m=0;
-                while(m<permuteNum)
+                mincost=infinity;
+                seqLen=worklist.size();
+
+                if(seqLen==1)
+                    SubAlloc(worklist,mapArray,hadamard,minmap,mincost);
+
+                else
                 {
-                    for(n=seqLen-1; n>0; n--)
+                    permuteNum=frac(seqLen);
+                    m=0;
+                    while(m<permuteNum)
                     {
-                        temp=worklist[n];
-                        worklist[n]=worklist[n-1];
-                        worklist[n-1]=temp;
+                        for(n=seqLen-1; n>0; n--)
+                        {
+                            temp=worklist[n];
+                            worklist[n]=worklist[n-1];
+                            worklist[n-1]=temp;
+                            m++;
+                            SubAlloc(worklist,mapArray,hadamard,minmap,mincost);
+                        }
+
+                        temp=worklist[seqLen-1];
+                        worklist[seqLen-1]=worklist[seqLen-2];
+                        worklist[seqLen-2]=temp;
+                        m++;
+                        SubAlloc(worklist,mapArray,hadamard,minmap,mincost);
+
+                        for(n=0; n<seqLen-1; n++)
+                        {
+                            temp=worklist[n];
+                            worklist[n]=worklist[n+1];
+                            worklist[n+1]=temp;
+                            m++;
+                            SubAlloc(worklist,mapArray,hadamard,minmap,mincost);
+                        }
+
+                        temp=worklist[0];
+                        worklist[0]=worklist[1];
+                        worklist[1]=temp;
                         m++;
                         SubAlloc(worklist,mapArray,hadamard,minmap,mincost);
                     }
-
-                    temp=worklist[seqLen-1];
-                    worklist[seqLen-1]=worklist[seqLen-2];
-                    worklist[seqLen-2]=temp;
-                    m++;
-                    SubAlloc(worklist,mapArray,hadamard,minmap,mincost);
-
-                    for(n=0; n<seqLen-1; n++)
-                    {
-                        temp=worklist[n];
-                        worklist[n]=worklist[n+1];
-                        worklist[n+1]=temp;
-                        m++;
-                        SubAlloc(worklist,mapArray,hadamard,minmap,mincost);
-                    }
-
-                    temp=worklist[0];
-                    worklist[0]=worklist[1];
-                    worklist[1]=temp;
-                    m++;
-                    SubAlloc(worklist,mapArray,hadamard,minmap,mincost);
                 }
+
+                mapArray=minmap;
+                totalcost=totalcost+mincost;
+                worklist.clear();
             }
 
-            mapArray=minmap;
-            totalcost=totalcost+mincost;
-            worklist.clear();
+            for(j=0;j<qubitNum;j++)
+                vacant[j]=true;
 
-            /*
-            cout << "After the " << i+1 << "th operation:" << endl;
-            PrintMap();
-            cout << endl;
-            */
+            i=record-1;
+            record=seq.size();
+            cnt=0;
+            flag=false;
         }
     }
 
@@ -671,7 +680,7 @@ void HardwareB::SubAlloc(vector<vector<int>> worklist,vector<int> mapArray,vecto
                 hadamardcopy[dest]=false;
             }
 
-            else
+            else if(!archMatrix[current][next] && !archMatrix[next][dest])
             {
                 cost=cost+10;
 
@@ -691,17 +700,37 @@ void HardwareB::SubAlloc(vector<vector<int>> worklist,vector<int> mapArray,vecto
                     hadamardcopy[dest]=true;
             }
 
-            /*
-                        else if((!archMatrix[current][next] && !archMatrix[next][dest]) || (archMatrix[current][next] && !archMatrix[next][dest]))
-                            cost=cost+10;
-                        else
-                        {
-                            temp=mapArray[current];
-                            mapArray[current]=mapArray[next];
-                            mapArray[next]=temp;
-                            cost=cost+8;
-                        }
-            */
+            else if(archMatrix[current][next] && !archMatrix[next][dest])
+            {
+                cost=cost+10;
+
+                hadamardcopy[current]=false;
+
+                if(hadamardcopy[next])
+                {
+                    cost=cost-2;
+                    hadamardcopy[next]=false;
+                }
+
+                if(hadamardcopy[dest])
+                    cost=cost-2;
+                else
+                    hadamardcopy[dest]=true;
+            }
+
+            else
+            {
+                cost=cost+10;
+
+                if(hadamardcopy[current])
+                    cost=cost-2;
+                else
+                    hadamardcopy[current]=true;
+
+                hadamardcopy[next]=true;
+
+                hadamardcopy[dest]=false;
+            }
         }
 
     }
