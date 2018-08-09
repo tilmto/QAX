@@ -8,7 +8,7 @@
 #include <dirent.h>
 #include <time.h>
 #define infinity 10000000
-#define Readahead 20
+#define Readahead 4
 
 using namespace std;
 
@@ -403,15 +403,15 @@ void HardwareB::InitMap(vector<vector<int>> seq)
 
     sortOutDeg.push_back(4);
     sortOutDeg.push_back(13);
-    sortOutDeg.push_back(5);
     sortOutDeg.push_back(12);
+    sortOutDeg.push_back(5);
+    sortOutDeg.push_back(3);
     sortOutDeg.push_back(14);
     sortOutDeg.push_back(6);
     sortOutDeg.push_back(11);
-    sortOutDeg.push_back(3);
     sortOutDeg.push_back(10);
-    sortOutDeg.push_back(15);
     sortOutDeg.push_back(7);
+    sortOutDeg.push_back(15);
     sortOutDeg.push_back(2);
     sortOutDeg.push_back(0);
     sortOutDeg.push_back(9);
@@ -610,7 +610,6 @@ void HardwareB::SubAlloc(vector<vector<int>> worklist,vector<int> mapArray,vecto
 {
     unsigned int i;
     int j,current,next,dest,temp,cost=0;
-    vector<bool> hadamardcopy(hadamard);
 
     for(i=0; i<worklist.size(); i++)
     {
