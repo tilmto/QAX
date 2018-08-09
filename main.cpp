@@ -368,7 +368,7 @@ public:
 
     int Alloc(vector<vector<int>> seq);
 
-    void SubAlloc(vector<vector<int>> worklist,vector<int> mapArray,vector<bool>& hadamard,vector<int>& minmap,int& mincost);
+    void SubAlloc(vector<vector<int>> worklist,vector<int> mapArray,vector<bool> hadamard,vector<bool>& minhadamard,vector<int>& minmap,int& mincost);
 };
 
 HardwareB::HardwareB(string hwname,bool isUniDirection=true):HardwareA(hwname,isUniDirection) {}
@@ -453,6 +453,7 @@ int HardwareB::Alloc(vector<vector<int>> seq)
     vector<int> minmap;
     vector<int> temp;
     vector<bool> hadamard(qubitNum,false);
+    vector<bool> minhadamard;
     vector<bool> seqitem(seq.size(),true);
     vector<bool> vacant(qubitNum,true);
 
@@ -545,7 +546,7 @@ int HardwareB::Alloc(vector<vector<int>> seq)
                 seqLen=worklist.size();
 
                 if(seqLen==1)
-                    SubAlloc(worklist,mapArray,hadamard,minmap,mincost);
+                    SubAlloc(worklist,mapArray,hadamard,minhadamard,minmap,mincost);
 
                 else
                 {
@@ -559,14 +560,14 @@ int HardwareB::Alloc(vector<vector<int>> seq)
                             worklist[n]=worklist[n-1];
                             worklist[n-1]=temp;
                             m++;
-                            SubAlloc(worklist,mapArray,hadamard,minmap,mincost);
+                            SubAlloc(worklist,mapArray,hadamard,minhadamard,minmap,mincost);
                         }
 
                         temp=worklist[seqLen-1];
                         worklist[seqLen-1]=worklist[seqLen-2];
                         worklist[seqLen-2]=temp;
                         m++;
-                        SubAlloc(worklist,mapArray,hadamard,minmap,mincost);
+                        SubAlloc(worklist,mapArray,hadamard,minhadamard,minmap,mincost);
 
                         for(n=0; n<seqLen-1; n++)
                         {
@@ -574,18 +575,19 @@ int HardwareB::Alloc(vector<vector<int>> seq)
                             worklist[n]=worklist[n+1];
                             worklist[n+1]=temp;
                             m++;
-                            SubAlloc(worklist,mapArray,hadamard,minmap,mincost);
+                            SubAlloc(worklist,mapArray,hadamard,minhadamard,minmap,mincost);
                         }
 
                         temp=worklist[0];
                         worklist[0]=worklist[1];
                         worklist[1]=temp;
                         m++;
-                        SubAlloc(worklist,mapArray,hadamard,minmap,mincost);
+                        SubAlloc(worklist,mapArray,hadamard,minhadamard,minmap,mincost);
                     }
                 }
 
                 mapArray=minmap;
+                hadamard=minhadamard;
                 totalcost=totalcost+mincost;
                 worklist.clear();
             }
@@ -604,7 +606,7 @@ int HardwareB::Alloc(vector<vector<int>> seq)
 }
 
 
-void HardwareB::SubAlloc(vector<vector<int>> worklist,vector<int> mapArray,vector<bool>& hadamard,vector<int>& minmap,int& mincost)
+void HardwareB::SubAlloc(vector<vector<int>> worklist,vector<int> mapArray,vector<bool> hadamard,vector<bool>& minhadamard,vector<int>& minmap,int& mincost)
 {
     unsigned int i;
     int j,current,next,dest,temp,cost=0;
@@ -628,23 +630,23 @@ void HardwareB::SubAlloc(vector<vector<int>> worklist,vector<int> mapArray,vecto
             if(archMatrix[current][next])
             {
                 cost++;
-                hadamardcopy[current]=false;
-                hadamardcopy[next]=false;
+                hadamard[current]=false;
+                hadamard[next]=false;
             }
 
             else
             {
                 cost=cost+5;
 
-                if(hadamardcopy[current])
+                if(hadamard[current])
                     cost=cost-2;
                 else
-                    hadamardcopy[current]=true;
+                    hadamard[current]=true;
 
-                if(hadamardcopy[next])
+                if(hadamard[next])
                     cost=cost-2;
                 else
-                    hadamardcopy[next]=true;
+                    hadamard[next]=true;
             }
         }
 
@@ -658,8 +660,8 @@ void HardwareB::SubAlloc(vector<vector<int>> worklist,vector<int> mapArray,vecto
 
                 cost=cost+7;
 
-                hadamardcopy[current]=false;
-                hadamardcopy[next]=false;
+                hadamard[current]=false;
+                hadamard[next]=false;
 
                 current=next;
                 next=routeMatrix[current][dest];
@@ -669,61 +671,61 @@ void HardwareB::SubAlloc(vector<vector<int>> worklist,vector<int> mapArray,vecto
             {
                 cost=cost+4;
 
-                hadamardcopy[current]=false;
-                hadamardcopy[next]=false;
-                hadamardcopy[dest]=false;
+                hadamard[current]=false;
+                hadamard[next]=false;
+                hadamard[dest]=false;
             }
 
             else if(!archMatrix[current][next] && !archMatrix[next][dest])
             {
                 cost=cost+10;
 
-                if(hadamardcopy[current])
+                if(hadamard[current])
                     cost=cost-2;
                 else
-                    hadamardcopy[current]=true;
+                    hadamard[current]=true;
 
-                if(hadamardcopy[next])
+                if(hadamard[next])
                     cost=cost-2;
                 else
-                    hadamardcopy[next]=true;
+                    hadamard[next]=true;
 
-                if(hadamardcopy[dest])
+                if(hadamard[dest])
                     cost=cost-2;
                 else
-                    hadamardcopy[dest]=true;
+                    hadamard[dest]=true;
             }
 
             else if(archMatrix[current][next] && !archMatrix[next][dest])
             {
                 cost=cost+10;
 
-                hadamardcopy[current]=false;
+                hadamard[current]=false;
 
-                if(hadamardcopy[next])
+                if(hadamard[next])
                 {
                     cost=cost-2;
-                    hadamardcopy[next]=false;
+                    hadamard[next]=false;
                 }
 
-                if(hadamardcopy[dest])
+                if(hadamard[dest])
                     cost=cost-2;
                 else
-                    hadamardcopy[dest]=true;
+                    hadamard[dest]=true;
             }
 
             else
             {
                 cost=cost+10;
 
-                if(hadamardcopy[current])
+                if(hadamard[current])
                     cost=cost-2;
                 else
-                    hadamardcopy[current]=true;
+                    hadamard[current]=true;
 
-                hadamardcopy[next]=true;
+                hadamard[next]=true;
 
-                hadamardcopy[dest]=false;
+                hadamard[dest]=false;
             }
         }
 
@@ -733,7 +735,7 @@ void HardwareB::SubAlloc(vector<vector<int>> worklist,vector<int> mapArray,vecto
     {
         mincost=cost;
         minmap=mapArray;
-        hadamard=hadamardcopy;
+        minhadamard=hadamard;
     }
 }
 

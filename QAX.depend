@@ -1,5 +1,5 @@
 # depslib dependency file v1.0
-1533748175 source:/home/tilmto/CodeBlocks/QAX/main.cpp
+1533838443 source:/home/tilmto/CodeBlocks/QAX/main.cpp
 	<cstdlib>
 	<iostream>
 	<fstream>
