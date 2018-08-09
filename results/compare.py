@@ -25,7 +25,7 @@ if(len(benchr)!=len(benchm)):
 
 count=0;
 for i in range(len(benchr)):
-	if(benchm[i]<=benchr[i]):
+	if(int(benchm[i])<=int(benchr[i])):
 		count=count+1
 
 print(count)
